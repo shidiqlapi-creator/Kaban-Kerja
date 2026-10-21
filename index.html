@@ -148,6 +148,7 @@ select.ss{padding:4px 6px;font-size:13px}
 const firebaseConfig = {
   apiKey: "AIzaSyCTe9N70s45bdrenLwF-oUqypRv6wnQhno",
   authDomain: "kanban-app-e82a6.firebaseapp.com",
+  databaseURL: "https://kanban-app-e82a6-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "kanban-app-e82a6",
   storageBucket: "kanban-app-e82a6.firebasestorage.app",
   messagingSenderId: "89461194548",
@@ -155,9 +156,9 @@ const firebaseConfig = {
   measurementId: "G-KE93KVSS1P"
 };
 
-// Inisialisasi Firebase & Realtime Database
+// Inisialisasi Firebase & Realtime Database dengan URL yang spesifik
 firebase.initializeApp(firebaseConfig);
-const dbRef = firebase.database().ref('kanban_data');
+const dbRef = firebase.database('https://kanban-app-e82a6-default-rtdb.asia-southeast1.firebasedatabase.app').ref('kanban_data');
 
 var tasks=[], S, editId=null;
 
