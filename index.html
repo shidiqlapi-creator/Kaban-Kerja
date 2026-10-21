@@ -1,13 +1,15 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dasbor Kanban Kerja</title>
 <link rel="manifest" href="manifest.json">
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
   }
 </script>
-<!doctype html>
-<html lang="id"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dasbor Kanban Kerja</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f2f5f7;--card:#fff;--ink:#14202b;--mut:#5b6a77;--line:#dce3e9;--done:#1d8a6f;--prog:#c98512;--late:#c4362d;--todo:#6a7b92;--latebg:#fbeceb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -70,10 +72,11 @@ select.ss{padding:4px 6px;font-size:13px}
 .inl{display:flex;gap:8px;margin-top:6px}.inl input{flex:1;min-width:0}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;font-weight:600;z-index:40;max-width:90%}
 #mdl{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px}.mbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;width:100%;max-width:420px}
-</style><!-- Pustaka Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-</head></head>
+</style>
+<!-- Pustaka Firebase SDK Compat -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
 <body><div class="app">
 <nav aria-label="Menu">
  <div class="brand">Kanban Kerja</div>
@@ -139,20 +142,9 @@ select.ss{padding:4px 6px;font-size:13px}
  <div class="add" style="grid-template-columns:1fr;margin-bottom:12px"><label>Penyebab keterlambatan<select id="m-a"></select></label><label>Catatan<input id="m-c" placeholder="Jelaskan singkat"></label></div>
  <div class="inl" style="justify-content:flex-end"><button onclick="mClose()">Batal</button><button class="pri" onclick="mSave()">Simpan</button></div></div></div>
 <div id="toast" role="status" hidden></div>
-<script>
-var KEY="dasbor_kanban_v2",SK="dasbor_kanban_set_v1",tasks=[],S,editId=null;
-function $(i){return document.getElementById(i)}
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function defS(){return{statuses:[{n:"To Do",d:0},{n:"Doing",d:0},{n:"Review",d:0},{n:"Done",d:1}],jenis:["Rutin","Proyek","Administrasi","Laporan"],prios:["Tinggi","Sedang","Rendah"],
- fields:[{k:"judul",l:"Judul tugas",t:"text",on:1,b:1,lock:1},{k:"jenis",l:"Jenis pekerjaan",t:"select",on:1,b:1},{k:"status",l:"Status",t:"select",on:1,b:1,lock:1},{k:"prioritas",l:"Prioritas",t:"select",on:1,b:1},{k:"mulai",l:"Tanggal mulai",t:"date",on:1,b:1},{k:"tenggat",l:"Tenggat",t:"date",on:1,b:1},{k:"selesai",l:"Tanggal selesai",t:"date",on:1,b:1}]}}
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+<script>
+// Konfigurasi Firebase Anda
 const firebaseConfig = {
   apiKey: "AIzaSyCTe9N70s45bdrenLwF-oUqypRv6wnQhno",
   authDomain: "kanban-app-e82a6.firebaseapp.com",
@@ -163,10 +155,18 @@ const firebaseConfig = {
   measurementId: "G-KE93KVSS1P"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-  // Fungsi load: Mengambil data dari server Firebase dan terus memantau perubahan secara real-time
+// Inisialisasi Firebase & Realtime Database
+firebase.initializeApp(firebaseConfig);
+const dbRef = firebase.database().ref('kanban_data');
+
+var tasks=[], S, editId=null;
+
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function defS(){return{statuses:[{n:"To Do",d:0},{n:"Doing",d:0},{n:"Review",d:0},{n:"Done",d:1}],jenis:["Rutin","Proyek","Administrasi","Laporan"],prios:["Tinggi","Sedang","Rendah"],
+ fields:[{k:"judul",l:"Judul tugas",t:"text",on:1,b:1,lock:1},{k:"jenis",l:"Jenis pekerjaan",t:"select",on:1,b:1},{k:"status",l:"Status",t:"select",on:1,b:1,lock:1},{k:"prioritas",l:"Prioritas",t:"select",on:1,b:1},{k:"mulai",l:"Tanggal mulai",t:"date",on:1,b:1},{k:"tenggat",l:"Tenggat",t:"date",on:1,b:1},{k:"selesai",l:"Tanggal selesai",t:"date",on:1,b:1}]}}
+
+// Fungsi load: Mengambil data dari server Firebase dan mendengarkan perubahan secara real-time
 function load() {
   dbRef.on('value', (snapshot) => {
     const data = snapshot.val();
@@ -177,15 +177,15 @@ function load() {
       tasks = [];
       S = defS();
     }
-    // Jika S.alasan belum ada, berikan nilai default
     if(!S.alasan) {
       S.alasan = ["Menunggu pihak lain","Prioritas berubah","Kendala alat/teknis","Beban kerja terlalu padat","Permintaan berubah","Estimasi waktu kurang tepat","Lainnya"];
     }
     render();
+    renderForm();
   });
 }
 
-// Fungsi save: Mengirim dan memperbarui data otomatis ke server Firebase setiap ada perubahan
+// Fungsi save: Memperbarui data ke server Firebase
 function save() {
   try {
     dbRef.set({
@@ -196,6 +196,7 @@ function save() {
     console.error("Gagal menyimpan ke database:", e);
   }
 }
+
 function day(d){var x=new Date(d);x.setHours(0,0,0,0);return x}
 var today=day(new Date());
 function iso(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)}
@@ -203,7 +204,7 @@ function pd(s){if(!s)return null;s=String(s).trim();var m=s.match(/^(\d{4})-(\d{
 function fd(d){return d.toLocaleDateString("id-ID",{day:"numeric",month:"short"})}
 function diff(a,b){return Math.round((a-b)/864e5)}
 var DRX=/done|selesai|complete|closed/i;
-function isDone(t){var s=S.statuses.find(x=>x.n==t.status);return s?!!s.d:DRX.test(t.status||"")}
+function isDone(t){var s=S?S.statuses.find(x=>x.n==t.status):null;return s?!!s.d:DRX.test(t.status||"")}
 function opts(f){return f.k=="jenis"?S.jenis:f.k=="status"?S.statuses.map(s=>s.n):f.k=="prioritas"?S.prios:(f.o||[])}
 function val(t,f){return f.b?t[f.k]:(t.ex||{})[f.k]}
 function go(p){["dasbor","tugas","pengaturan"].forEach(x=>{$("p-"+x).hidden=x!=p;document.querySelector('nav [data-p="'+x+'"]').classList.toggle("on",x==p)});window.scrollTo(0,0)}
@@ -220,14 +221,9 @@ function parseCSV(txt){
  function ix(n){for(var i=0;i<h.length;i++)for(var j=0;j<n.length;j++)if(h[i].indexOf(n[j])>-1)return i;return -1}
  var m={judul:ix(["judul","title","name","nama","card"]),jenis:ix(["jenis","kategori","category","type"]),status:ix(["status","list","kolom","column"]),prio:ix(["prio","label"]),mulai:ix(["mulai","start","created"]),dead:ix(["tenggat","deadline","due"]),sel:ix(["selesai","done","complete","closed"])};
  return rows.filter(r=>r.join("").trim()).map((r,k)=>{var g=i=>i>-1?(r[i]||"").trim():"";
-  return{id:Date.now()+k,judul:g(m.judul)||"Tanpa judul",jenis:g(m.jenis),status:g(m.status)||S.statuses[0].n,prioritas:g(m.prio),mulai:g(m.mulai),tenggat:g(m.dead),selesai:g(m.sel),ex:{}}})
+  return{id:Date.now()+k,judul:g(m.judul)||"Tanpa judul",jenis:g(m.jenis),status:g(m.status)||(S?S.statuses[0].n:"To Do"),prioritas:g(m.prio),mulai:g(m.mulai),tenggat:g(m.dead),selesai:g(m.sel),ex:{}}})
 }
-function demo(){
- var T=[["Susun laporan bulanan","Done",-30,-20,-21],["Revisi SOP gudang","Done",-25,-14,-15],["Audit internal area produksi","Done",-22,-9,-6],["Update data stok","Done",-18,-8,-8],["Rapat evaluasi mingguan","Done",-14,-5,-5],["Validasi form deviasi","Done",-12,-2,-3],["Kalibrasi alat timbang","Doing",-20,-6,null],["Analisis penyebab keterlambatan","Doing",-10,-1,null],["Pelatihan operator baru","Review",-9,2,null],["Dokumen change control","Doing",-8,5,null],["Perbaikan dashboard OEE","To Do",-3,9,null],["Rencana pemeliharaan kuartal","To Do",-2,14,null],["Respon temuan auditor","To Do",-16,-4,null],["Kirim data ke tim QA","Review",-7,-2,null]];
- var J=["Rutin","Proyek","Administrasi","Laporan"],P=["Tinggi","Sedang","Rendah"];
- function o(n){return n==null?"":iso(new Date(today.getTime()+n*864e5))}
- var n=T.map((t,i)=>({id:Date.now()+i,judul:t[0],jenis:J[i%4],status:t[1],prioritas:P[i%3],mulai:o(t[2]),tenggat:o(t[3]),selesai:o(t[4]),ex:{}}));
- adopt(n);tasks=tasks.concat(n);up()}
+
 var tt;function toast(m){var e=$("toast");e.textContent=m;e.hidden=false;clearTimeout(tt);tt=setTimeout(function(){e.hidden=true},2500)}
 var pend=null;
 function needReason(t,sel){var d=pd(t.tenggat),x=pd(sel);return!!(d&&x&&x>d&&!t.alasan)}
@@ -241,17 +237,18 @@ function mClose(){$("mdl").hidden=true;pend=null;render()}
 function mSave(){if(!pend)return;var v=$("m-a").value,c=$("m-c").value.trim();
  if((!v||v=="Lainnya")&&!c){toast("Isi catatan untuk alasan ini.");return $("m-c").focus()}
  var p=pend;p.t.alasan=v||"Tanpa kategori";p.t.catatan=c;$("mdl").hidden=true;pend=null;p.ok()}
-function editAlasan(id){var t=tasks.find(x=>x.id==id);if(t)askReason(t,t.selesai,function(){save();render()})}
+function editAlasan(id){var t=tasks.find(x=>x.id==id);if(t)askReason(t,t.selesai,function(){save()})}
 function note(t){if(!lateDone(t))return"";var b=' <button class="sm" onclick="editAlasan('+t.id+')">'+(t.alasan?"Ubah":"Isi alasan")+"</button>";
  return t.alasan?'<br><span class="hint" style="margin:0">Terlambat: '+esc(t.alasan)+(t.catatan?" - "+esc(t.catatan):"")+"</span>"+b:'<br><span class="hint" style="margin:0;color:var(--late)">Alasan terlambat belum diisi</span>'+b}
 document.addEventListener("keydown",function(e){if(e.key=="Escape"&&!$("mdl").hidden)mClose()});
 function setStatus(id,v){var t=tasks.find(x=>x.id==id);if(!t)return;
  var dn=isDone({status:v}),sel=t.selesai||iso(today);
- if(dn&&needReason(t,sel)){askReason(t,sel,function(){t.status=v;t.selesai=sel;save();render()});return}
- t.status=v;if(dn){if(!t.selesai)t.selesai=iso(today)}else t.selesai="";save();render()}
-function delT(id){tasks=tasks.filter(x=>x.id!=id);save();render();toast("Tugas dihapus")}
+ if(dn&&needReason(t,sel)){askReason(t,sel,function(){t.status=v;t.selesai=sel;save()});return}
+ t.status=v;if(dn){if(!t.selesai)t.selesai=iso(today)}else t.selesai="";save()}
+function delT(id){tasks=tasks.filter(x=>x.id!=id);save();toast("Tugas dihapus")}
 function ssel(t){var l=S.statuses.map(s=>s.n);if(l.indexOf(t.status)<0)l.push(t.status);return'<select class="ss" aria-label="Ganti status" onchange="setStatus('+t.id+',this.value)">'+l.map(n=>'<option'+(n==t.status?" selected":"")+">"+esc(n)+"</option>").join("")+"</select>"}
 function renderDash(){
+ if(!S) return;
  $("tgl").textContent="Per "+today.toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
  var done=tasks.filter(isDone),open=tasks.filter(t=>!isDone(t));
  var late=open.filter(t=>{var d=pd(t.tenggat);return d&&d<today}).map(t=>({t:t,l:diff(today,pd(t.tenggat))})).sort((a,b)=>b.l-a.l);
@@ -275,11 +272,14 @@ function renderDash(){
  $("wk").innerHTML=w.map(x=>"<div><b>"+x.n+'</b><i style="height:'+x.n/wm*88+'px"></i><span>'+x.l+"</span></div>").join("")}
 function bar(n,c,mx,col){return'<div class="row"><span class="nm" title="'+esc(n)+'">'+esc(n)+'</span><span class="bar"><i style="width:'+c/mx*100+"%;background:"+col+'"></i></span><em>'+c+"</em></div>"}
 function renderTasks(){
+ if(!S) return;
  var f=$("flt"),cur=f.value||"";f.innerHTML='<option value="">Semua status</option>'+S.statuses.map(s=>"<option"+(s.n==cur?" selected":"")+">"+esc(s.n)+"</option>").join("");
  var cols=S.fields.filter(x=>x.on&&["judul","status","mulai","selesai"].indexOf(x.k)<0);
  var L=tasks.filter(t=>!f.value||t.status==f.value).sort((a,b)=>(pd(a.tenggat)||9e15)-(pd(b.tenggat)||9e15));
  $("tl").innerHTML=L.length?"<table><tr><th>Tugas</th><th>Status</th>"+cols.map(c=>"<th>"+esc(c.l)+"</th>").join("")+"<th></th></tr>"+L.map(t=>"<tr><td>"+esc(t.judul)+note(t)+"</td><td>"+ssel(t)+"</td>"+cols.map(c=>{var v=val(t,c);if(c.t=="date"&&pd(v))v=fd(pd(v));var late=c.k=="tenggat"&&!isDone(t)&&pd(t.tenggat)&&pd(t.tenggat)<today;return"<td"+(late?' class="late-d"':"")+">"+esc(v||"-")+"</td>"}).join("")+'<td style="white-space:nowrap"><button class="sm" aria-label="Ubah tugas" onclick="editT('+t.id+')">Ubah</button> <button class="x" aria-label="Hapus tugas" onclick="delT('+t.id+')">Hapus</button></td></tr>').join("")+"</table>":'<div class="empty">Belum ada tugas. Isi form di atas.</div>'}
-function renderForm(){editId=null;
+function renderForm(){
+ if(!S) return;
+ editId=null;
  $("fm").innerHTML=S.fields.filter(f=>f.on).map(f=>{var id="f_"+f.k,r=f.lock?" required":"";
   var i=f.t=="select"?'<select id="'+id+'"'+r+">"+(f.lock?"":"<option></option>")+opts(f).map(o=>"<option>"+esc(o)+"</option>").join("")+"</select>":'<input id="'+id+'" type="'+f.t+'"'+r+">";
   return"<label>"+esc(f.l)+i+"</label>"}).join("")+'<button class="pri" id="fsave" type="submit">Simpan tugas</button><button type="button" id="fcan" hidden onclick="cancelEdit()">Batal</button>';setMode()}
@@ -303,11 +303,12 @@ async function exportCSV(){
  try{await dl.save({filename:"data-kanban-"+iso(today)+".csv",data:txt});toast("Data diekspor")}catch(e){if(!e||e.code!="declined")toast("Ekspor gagal atau tidak tersedia.")}}
 function chips(key){return S[key].map((o,i)=>'<span class="chip">'+esc(o)+'<button aria-label="Hapus '+esc(o)+'" onclick="delO(\''+key+"',"+i+')">×</button></span>').join("")||'<span class="empty">Belum ada pilihan.</span>'}
 function renderSet(){
+ if(!S) return;
  $("set-fd").innerHTML=S.fields.map((f,i)=>'<div class="srow"><input type="checkbox" aria-label="Tampilkan '+esc(f.l)+'"'+(f.on?" checked":"")+(f.lock?" disabled":"")+' onchange="togF('+i+')"><span class="g">'+esc(f.l)+(f.lock?' <span class="tag">wajib</span>':"")+"</span>"+'<span class="tag">'+({text:"Teks",number:"Angka",date:"Tanggal",select:"Pilihan"})[f.t]+"</span>"+(f.b?"":'<button class="x" onclick="delF('+i+')">Hapus</button>')+"</div>").join("");
  $("set-st").innerHTML=S.statuses.map((s,i)=>'<div class="srow"><span class="g">'+esc(s.n)+'</span><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox"'+(s.d?" checked":"")+' onchange="togD('+i+')">Selesai</label><button class="x" onclick="delS('+i+')">Hapus</button></div>').join("");
  $("set-jn").innerHTML=chips("jenis");$("set-pr").innerHTML=chips("prios");$("set-al").innerHTML=chips("alasan")}
 function render(){renderDash();renderTasks();renderSet()}
-function up(){save();render();renderForm()}
+function up(){save()}
 function togF(i){S.fields[i].on=S.fields[i].on?0:1;up()}
 function delF(i){S.fields.splice(i,1);up();toast("Kolom dihapus dari form")}
 function addF(){var l=$("nf-l").value.trim();if(!l)return $("nf-l").focus();var t=$("nf-t").value,f={k:"c"+Date.now(),l:l,t:t,on:1};
@@ -324,9 +325,12 @@ $("fm").addEventListener("submit",function(e){e.preventDefault();
  var t=ed?JSON.parse(JSON.stringify(ed)):{id:Date.now(),judul:"",jenis:"",status:S.statuses[0].n,prioritas:"",mulai:"",tenggat:"",selesai:"",ex:{}};
  if(!t.ex)t.ex={};S.fields.forEach(f=>{if(!f.on)return;var v=$("f_"+f.k).value;if(f.b)t[f.k]=v;else t.ex[f.k]=v});
  if(isDone(t)){if(!t.selesai)t.selesai=iso(today)}else t.selesai="";
- function commit(){if(ed)tasks[tasks.indexOf(ed)]=t;else tasks.push(t);save();render();$("fm").reset();if(ed){cancelEdit();toast("Perubahan disimpan")}}
+ function commit(){if(ed)tasks[tasks.indexOf(ed)]=t;else tasks.push(t);save();$("fm").reset();if(ed){cancelEdit();toast("Perubahan disimpan")}}
  if(isDone(t)&&needReason(t,t.selesai))askReason(t,t.selesai,commit);else commit()});
 $("file").addEventListener("change",function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();
  r.onload=function(){var n=parseCSV(r.result);adopt(n);tasks=tasks.concat(n);up()};r.readAsText(f);e.target.value=""});
-load();render();renderForm();go("dasbor");
+
+// Jalankan pemantauan data real-time
+load();
+go("dasbor");
 </script></body></html>
