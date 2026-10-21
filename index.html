@@ -145,9 +145,57 @@ function $(i){return document.getElementById(i)}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function defS(){return{statuses:[{n:"To Do",d:0},{n:"Doing",d:0},{n:"Review",d:0},{n:"Done",d:1}],jenis:["Rutin","Proyek","Administrasi","Laporan"],prios:["Tinggi","Sedang","Rendah"],
  fields:[{k:"judul",l:"Judul tugas",t:"text",on:1,b:1,lock:1},{k:"jenis",l:"Jenis pekerjaan",t:"select",on:1,b:1},{k:"status",l:"Status",t:"select",on:1,b:1,lock:1},{k:"prioritas",l:"Prioritas",t:"select",on:1,b:1},{k:"mulai",l:"Tanggal mulai",t:"date",on:1,b:1},{k:"tenggat",l:"Tenggat",t:"date",on:1,b:1},{k:"selesai",l:"Tanggal selesai",t:"date",on:1,b:1}]}}
-function load(){try{tasks=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem("dasbor_kanban_v1")||"[]")||[]}catch(e){tasks=[]}
- try{S=JSON.parse(localStorage.getItem(SK))}catch(e){S=null}if(!S||!S.fields)S=defS();if(!S.alasan)S.alasan=["Menunggu pihak lain","Prioritas berubah","Kendala alat/teknis","Beban kerja terlalu padat","Permintaan berubah","Estimasi waktu kurang tepat","Lainnya"]}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(tasks));localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCTe9N70s45bdrenLwF-oUqypRv6wnQhno",
+  authDomain: "kanban-app-e82a6.firebaseapp.com",
+  projectId: "kanban-app-e82a6",
+  storageBucket: "kanban-app-e82a6.firebasestorage.app",
+  messagingSenderId: "89461194548",
+  appId: "1:89461194548:web:cc20b5354251ea847aaf61",
+  measurementId: "G-KE93KVSS1P"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+  // Fungsi load: Mengambil data dari server Firebase dan terus memantau perubahan secara real-time
+function load() {
+  dbRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      tasks = data.tasks || [];
+      S = data.settings || defS();
+    } else {
+      tasks = [];
+      S = defS();
+    }
+    // Jika S.alasan belum ada, berikan nilai default
+    if(!S.alasan) {
+      S.alasan = ["Menunggu pihak lain","Prioritas berubah","Kendala alat/teknis","Beban kerja terlalu padat","Permintaan berubah","Estimasi waktu kurang tepat","Lainnya"];
+    }
+    render();
+  });
+}
+
+// Fungsi save: Mengirim dan memperbarui data otomatis ke server Firebase setiap ada perubahan
+function save() {
+  try {
+    dbRef.set({
+      tasks: tasks,
+      settings: S
+    });
+  } catch(e) {
+    console.error("Gagal menyimpan ke database:", e);
+  }
+}
 function day(d){var x=new Date(d);x.setHours(0,0,0,0);return x}
 var today=day(new Date());
 function iso(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)}
