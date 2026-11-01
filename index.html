@@ -73,6 +73,17 @@ select.ss{padding:4px 6px;font-size:13px}
 .authbox{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 @media(max-width:820px){#who{display:none}}
 @media(max-width:640px){.stk,.stk tbody,.stk tr,.stk td{display:block;width:100%}.stk tr:first-child{display:none}.stk tr{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;padding:6px 8px}.stk td{border:0;padding:4px 0;display:flex;justify-content:space-between;align-items:center;gap:10px}.stk td[data-l]::before{content:attr(data-l);color:var(--mut);font-size:12px;flex:none}.stk td.tt{display:block;font-weight:600}.stk td.act{justify-content:flex-end}.stk tr.lr td{background:none}.stk tr.lr{background:var(--latebg)}.scroll{overflow-x:visible}}
+.dc{display:flex;align-items:flex-end;gap:6px;overflow-x:auto;padding:4px 0}
+.dcol{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;flex:1;min-width:30px}
+.dcol .tot{font-size:12px;font-weight:800;height:16px;line-height:16px}
+.stack{display:flex;flex-direction:column-reverse;gap:2px;width:100%}
+.seg{width:100%;border:0;border-radius:4px;padding:0;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.seg.on{outline:2px solid var(--ink);outline-offset:1px}
+.dl{border:0;background:none;padding:2px 0;font-size:11px;line-height:1.25;color:var(--mut);width:100%;border-radius:6px;text-align:center;font-family:inherit;cursor:pointer}
+.dcol.on .dl{background:var(--ink);color:var(--bg)}
+.dcol.td .dl{font-weight:800}
+.lgd{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;margin:8px 0 0}.lgd i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.dd{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
 </style></head>
 <body>
 <div id="auth" class="authbox"><div class="mbox"><h1 style="font-size:22px">Dasbor Kanban Kerja</h1><p class="hint" style="margin:4px 0 12px">Masuk agar data tersinkron antar perangkat.</p>
@@ -100,6 +111,7 @@ select.ss{padding:4px 6px;font-size:13px}
  </header>
  <div class="card" id="rt"></div>
  <div class="kpis" id="kpis"></div>
+ <div class="card"><div class="inl" style="margin:0 0 6px;align-items:center;flex-wrap:wrap"><h2 style="margin:0;flex:1">Penyelesaian tugas harian</h2><select id="rng" class="ss" onchange="rng=+this.value;renderDC()" aria-label="Rentang hari"><option value="7">7 hari</option><option value="14" selected>14 hari</option><option value="30">30 hari</option></select></div><div id="dc"></div><div id="dd"></div></div>
  <div class="grid">
   <div class="card"><h2>Pekerjaan terbuka</h2><p class="hint" style="margin:-6px 0 10px">Yang lewat tenggat ditandai merah dan berada di paling atas.</p><div class="scroll" id="late"></div></div>
   <div>
@@ -295,7 +307,7 @@ function renderSet(){
  var act=(S.rut||[]).filter(r=>!r.to),arc=(S.rut||[]).filter(r=>r.to),dl=r=>'<button class="x" data-id="'+esc(r.id)+'" onclick="delR(this.dataset.id)">'+(armed==r.id?"Yakin hapus?":"Hapus")+"</button>";
  $("set-rt").innerHTML=act.length?act.map(r=>'<div class="srow"><input data-id="'+esc(r.id)+'" value="'+esc(r.n)+'" aria-label="Nama rutinitas" onchange="renR(this.dataset.id,this.value)" style="flex:1;min-width:0"><button class="sm" data-id="'+esc(r.id)+'" onclick="arcR(this.dataset.id)">Arsipkan</button>'+dl(r)+"</div>").join(""):'<div class="empty">Belum ada rutinitas aktif.</div>';
  $("set-rh").innerHTML=arc.length?arc.map(r=>'<div class="srow"><span class="g">'+esc(r.n)+' <span class="hint" style="margin:0">'+fd(pd(r.from))+" - "+fd(pd(r.to))+" · konsistensi "+pctAll(r)+'</span></span><button class="sm" data-id="'+esc(r.id)+'" onclick="reaR(this.dataset.id)">Aktifkan lagi</button>'+dl(r)+"</div>").join(""):'<div class="empty">Belum ada rutinitas yang diarsipkan.</div>'}
-function render(){renderDash();renderTasks();renderSet();renderRut()}
+function render(){renderDash();renderTasks();renderSet();renderRut();renderDC()}
 function up(){save();render();renderForm()}
 function togF(i){S.fields[i].on=S.fields[i].on?0:1;up()}
 function delF(i){S.fields.splice(i,1);up();toast("Kolom dihapus dari form")}
@@ -388,6 +400,32 @@ function startApp(uid,email,c){stopApp();KEY="dk_t_"+uid;SK="dk_s_"+uid;RK="dk_r
  $("q").value="";$("who").textContent=email||"";load();APP=true;render();renderForm();go("dasbor");
  col=c;setStat("conn");unsub=col.onSnapshot(onSnap,function(){col=null;setStat("err")})}
 function stopApp(){if(unsub){try{unsub()}catch(e){}unsub=null}col=null;clearTimeout(timer);APP=false;tasks=[];R={};if($("mdl"))$("mdl").hidden=true}
+var rng=14,dsel={d:"",p:""};
+function pickDay(d,p){p=p||"";dsel=(dsel.d==d&&dsel.p==p)?{d:"",p:""}:{d:d,p:p};renderDC()}
+function clearDay(){dsel={d:"",p:""};renderDC()}
+function renderDC(){
+ var days=[],i;for(i=rng-1;i>=0;i--)days.push(ago(i));
+ var done=tasks.filter(t=>isDone(t)&&nrm(t.selesai)),cats=(S.prios||[]).slice(),pal=["var(--late)","var(--prog)","var(--done)","var(--todo)","#8e6bbf","#2f7fb8","#b5651d"];
+ var P=t=>t.prioritas||"Tanpa prioritas";
+ done.forEach(t=>{if(cats.indexOf(P(t))<0)cats.push(P(t))});
+ var pc=p=>pal[Math.min(cats.indexOf(p),pal.length-1)],m={},mx=1,tp={},tt=0;
+ days.forEach(d=>{m[d]={}});
+ done.forEach(t=>{var d=nrm(t.selesai);if(m[d]){m[d][P(t)]=(m[d][P(t)]||0)+1;tp[P(t)]=(tp[P(t)]||0)+1;tt++}});
+ var sums={};days.forEach(d=>{var n=0;cats.forEach(p=>{n+=m[d][p]||0});sums[d]=n;if(n>mx)mx=n});
+ var u=Math.min(28,110/mx);
+ var h='<div class="dc">'+days.map(d=>{var dt=pd(d),n=sums[d],on=dsel.d==d;
+  var segs=cats.filter(p=>m[d][p]).map(p=>'<button class="seg'+(on&&dsel.p==p?" on":"")+'" data-d="'+d+'" data-p="'+esc(p)+'" onclick="pickDay(this.dataset.d,this.dataset.p)" title="'+esc(p)+": "+m[d][p]+'" aria-label="'+fd(dt)+", "+esc(p)+", "+m[d][p]+' tugas" style="height:'+Math.max(m[d][p]*u,14)+"px;background:"+pc(p)+'">'+m[d][p]+"</button>").join("");
+  return'<div class="dcol'+(on?" on":"")+(d==iso(today)?" td":"")+'"><span class="tot">'+(n||"")+'</span><div class="stack">'+segs+'</div><button class="dl" data-d="'+d+'" onclick="pickDay(this.dataset.d,\'\')" aria-label="Lihat tugas selesai '+fd(dt)+'">'+dt.getDate()+"<br>"+dt.toLocaleDateString("id-ID",{month:"short"})+"</button></div>"}).join("")+"</div>";
+ h+='<div class="lgd">'+(tt?cats.filter(p=>tp[p]).map(p=>'<span><i style="background:'+pc(p)+'"></i>'+esc(p)+" "+tp[p]+"</span>").join("")+"<span>Total "+tt+" tugas selesai</span>":"<span>Belum ada tugas selesai pada rentang ini.</span>")+"</div>";
+ $("dc").innerHTML=h;
+ var hh="";
+ if(dsel.d){
+  var L=done.filter(t=>nrm(t.selesai)==dsel.d&&(!dsel.p||P(t)==dsel.p));
+  hh='<div class="dd"><div class="inl" style="margin:0 0 6px;align-items:center"><b style="flex:1">Selesai '+fd(pd(dsel.d))+(dsel.p?" · prioritas "+esc(dsel.p):"")+" ("+L.length+')</b><button class="sm" onclick="clearDay()">Tutup</button></div>'+
+   (L.length?L.map(t=>{var o=pd(orig(t)),s=pd(t.selesai),k=o&&s?(s<=o?'<span class="tag" style="color:var(--done);border-color:var(--done)">Tepat waktu</span>':'<span class="tag" style="color:var(--late);border-color:var(--late)">Terlambat '+diff(s,o)+" hari</span>"):"";
+    return'<div class="srow"><span class="g">'+esc(t.judul)+'<br><span class="hint" style="margin:0">'+esc(t.jenis||"-")+" · "+esc(P(t))+(t.alasan&&lateDone(t)?" · "+esc(t.alasan):"")+"</span></span>"+k+"</div>"}).join(""):'<div class="empty">Tidak ada tugas selesai pada pilihan ini.</div>')+"</div>"}
+ else hh='<p class="hint">Ketuk bagian batang atau tanggal untuk melihat tugas yang selesai.</p>';
+ $("dd").innerHTML=hh}
 function byId(a,b){return a.id-b.id}
 function onSnap(snap){
  if(snap.metadata.fromCache&&!merged)return;
