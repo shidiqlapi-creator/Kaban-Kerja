@@ -423,7 +423,7 @@ function importJSON(txt){var d;try{d=JSON.parse(txt)}catch(e){return toast("File
 function tick(){var n=day(new Date());if(n.getTime()!==today.getTime()){today=n;if(APP)render()}}
 function startApp(uid,email,c){stopApp();KEY="dk_t_"+uid;SK="dk_s_"+uid;RK="dk_r_"+uid;MK="dk_m_"+uid;
  last={};lastR={};lastS="";lastSig="";dirty=false;busy=false;stale=false;merged=false;ver=0;fails=0;lim=25;editId=null;pend=null;
- $("q").value="";$("who").textContent=email||"";load();APP=true;render();renderForm();go("dasbor");
+ $("q").value="";$("who").textContent=email||"";load();try{tdHide=localStorage.getItem("dk_h_"+KEY)=="1"}catch(e){}APP=true;render();renderForm();go("dasbor");
  col=c;setStat("conn");unsub=col.onSnapshot(onSnap,function(){col=null;setStat("err")})}
 function stopApp(){if(unsub){try{unsub()}catch(e){}unsub=null}col=null;clearTimeout(timer);APP=false;tasks=[];R={};if($("mdl"))$("mdl").hidden=true;pmClose()}
 var rng=14,dsel={d:"",p:""};
@@ -516,7 +516,8 @@ function renderHarian(){
   x.logs.forEach(l=>{h+=ik+"Update: "+esc(l.t)+"</span>"});
   x.rs.forEach(r=>{h+=gr+"Jadwal ulang: "+fd(pd(r.dari))+" > "+fd(pd(r.ke))+" ("+esc(r.alasan)+")</span>"});
   return'<div class="srow" style="align-items:flex-start"><span class="g"><b>'+esc(t.judul)+"</b> "+(x.done?'<span class="tag" style="color:var(--done);border-color:var(--done)">Selesai</span>':"")+h+'</span><button class="sm" onclick="openPM('+t.id+')">Progres</button></div>'}).join(""):'<div class="empty">Belum ada aktivitas tercatat pada hari ini.</div>'+(d!=td?'<p class="hint">Langkah dan catatan baru tercatat tanggalnya sejak fitur ini aktif.</p>':"")}
-var tdAll=false,tdOpen=false;
+var tdAll=false,tdOpen=false,tdHide=false;
+function toggleHide(){tdHide=!tdHide;try{localStorage.setItem("dk_h_"+KEY,tdHide?"1":"0")}catch(e){}renderToday()}
 function todayStats(){var td=iso(today),dn=tasks.filter(t=>isDone(t)&&nrm(t.selesai)==td);
  var rest=tasks.filter(t=>{if(isDone(t))return false;var d=pd(t.tenggat);return d&&d<=today}).map(t=>({t:t,l:diff(today,pd(t.tenggat))})).sort((a,b)=>b.l-a.l);
  var tot=dn.length+rest.length;return{dn:dn,rest:rest,tot:tot,pct:tot?Math.round(dn.length/tot*100):null}}
@@ -526,8 +527,9 @@ function todayHTML(){var s=todayStats(),td=iso(today),L=(S.rut||[]).filter(r=>r.
  else h+='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><b style="font-size:38px;line-height:1;color:'+(s.pct==100?"var(--done)":"var(--ink)")+'">'+s.pct+'%</b><div style="flex:1;min-width:160px"><span class="pb" style="max-width:none;height:10px"><i style="width:'+s.pct+'%"></i></span><span class="hint" style="margin:0">'+s.dn.length+" selesai · "+s.rest.length+" tersisa</span></div></div>";
  if(w&&!off&&L.length)h+='<p class="hint" style="margin:8px 0 0">Rutinitas: '+rn+"/"+L.length+"</p>";
  if(s.rest.length){var R2=tdAll?s.rest:s.rest.slice(0,8);
-  h+='<h2 style="font-size:14px;margin:12px 0 4px">Tersisa hari ini</h2>'+R2.map(x=>{var t=x.t;return'<div class="srow" style="flex-wrap:wrap;align-items:flex-start"><span class="g" style="min-width:150px"><b>'+esc(t.judul)+"</b> "+(x.l>0?'<span class="tag" style="color:var(--late);border-color:var(--late)">Telat '+x.l+" hari</span>":'<span class="tag">Jatuh tempo hari ini</span>')+' <span class="tag '+esc(t.prioritas)+'">'+esc(t.prioritas||"Tanpa prioritas")+"</span>"+prog(t)+"</span>"+ssel(t)+"</div>"}).join("");
-  if(s.rest.length>8)h+='<button class="sm" style="margin-top:8px" onclick="tdAll=!tdAll;renderToday()">'+(tdAll?"Ringkas":"Tampilkan semua ("+s.rest.length+")")+"</button>"}
+  h+='<div class="inl" style="margin:12px 0 4px;align-items:center"><h2 style="font-size:14px;margin:0;flex:1">Tersisa hari ini ('+s.rest.length+')</h2><button class="sm" onclick="toggleHide()">'+(tdHide?"Tampilkan":"Sembunyikan")+"</button></div>";
+  if(!tdHide){h+=R2.map(x=>{var t=x.t;return'<div class="srow" style="flex-wrap:wrap;align-items:flex-start"><span class="g" style="min-width:150px"><b>'+esc(t.judul)+"</b> "+(x.l>0?'<span class="tag" style="color:var(--late);border-color:var(--late)">Telat '+x.l+" hari</span>":'<span class="tag">Jatuh tempo hari ini</span>')+' <span class="tag '+esc(t.prioritas)+'">'+esc(t.prioritas||"Tanpa prioritas")+"</span>"+prog(t)+"</span>"+ssel(t)+"</div>"}).join("");
+  if(s.rest.length>8)h+='<button class="sm" style="margin-top:8px" onclick="tdAll=!tdAll;renderToday()">'+(tdAll?"Ringkas":"Tampilkan semua ("+s.rest.length+")")+"</button>"}}
  if(s.dn.length)h+='<details'+(tdOpen?" open":"")+' ontoggle="tdOpen=this.open" style="margin-top:10px"><summary class="hint" style="margin:0;cursor:pointer">Sudah selesai hari ini ('+s.dn.length+")</summary>"+s.dn.map(t=>'<div class="srow"><span class="g">'+esc(t.judul)+'</span><span class="tag" style="color:var(--done);border-color:var(--done)">'+esc(t.prioritas||"Tanpa prioritas")+"</span></div>").join("")+"</details>";
  return h}
 function renderToday(){var h=todayHTML(),a=$("td-c"),b=$("hd-t");if(a)a.innerHTML=h;if(b){b.hidden=hday()!=iso(today);if(!b.hidden)b.innerHTML=h}}
