@@ -1,6 +1,6 @@
 // Service worker: aplikasi tetap bisa dibuka saat offline.
 // Naikkan angka versi di bawah setiap kali index.html diperbarui agar cache lama diganti.
-const V = "kanban-v3";
+const V = "kanban-v4";
 const SHELL = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

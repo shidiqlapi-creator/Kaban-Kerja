@@ -99,6 +99,7 @@ textarea:focus-visible{outline:2px solid var(--prog);outline-offset:2px}
  <div class="brand">Kanban Kerja</div>
  <button data-p="dasbor" onclick="go('dasbor')">Dasbor</button>
  <button data-p="tugas" onclick="go('tugas')">Daftar tugas</button>
+ <button data-p="harian" onclick="go('harian')">Progres harian</button>
  <button data-p="pengaturan" onclick="go('pengaturan')">Pengaturan form</button>
  <div class="hint" id="who" style="margin:16px 12px 6px;word-break:break-all"></div>
  <button onclick="doLogout()">Keluar</button>
@@ -137,6 +138,14 @@ textarea:focus-visible{outline:2px solid var(--prog);outline-offset:2px}
   <div class="scroll" id="tl"></div>
   <div id="tm" class="inl" style="align-items:center;margin-top:10px;flex-wrap:wrap"></div>
  </div>
+</section>
+
+<section id="p-harian" hidden>
+ <header><div><h1>Progres harian</h1><p class="sub">Apa yang Anda kerjakan pada hari tertentu.</p></div></header>
+ <div class="card"><div class="inl" style="margin:0 0 8px;align-items:center;flex-wrap:wrap"><button class="sm" onclick="shiftHd(-1)" aria-label="Hari sebelumnya">‹</button><input id="hd-in" type="date" onchange="setHd(this.value)" style="flex:none"><button class="sm" onclick="shiftHd(1)" aria-label="Hari berikutnya">›</button><button class="sm" onclick="setHd(iso(today))">Hari ini</button><span id="hd-lb" class="hint" style="margin:0;flex:1"></span></div><div id="hd-st"></div></div>
+ <div class="kpis" id="hd-k"></div>
+ <div class="card"><h2>Rutinitas</h2><div id="hd-r"></div></div>
+ <div class="card"><h2>Aktivitas tugas</h2><div id="hd-a"></div></div>
 </section>
 
 <section id="p-pengaturan" hidden>
@@ -203,7 +212,7 @@ var DRX=/done|selesai|complete|closed/i;
 function isDone(t){var s=S.statuses.find(x=>x.n==t.status);return s?!!s.d:DRX.test(t.status||"")}
 function opts(f){return f.k=="jenis"?S.jenis:f.k=="status"?S.statuses.map(s=>s.n):f.k=="prioritas"?S.prios:(f.o||[])}
 function val(t,f){return f.b?t[f.k]:(t.ex||{})[f.k]}
-function go(p){["dasbor","tugas","pengaturan"].forEach(x=>{$("p-"+x).hidden=x!=p;document.querySelector('nav [data-p="'+x+'"]').classList.toggle("on",x==p)});window.scrollTo(0,0)}
+function go(p){["dasbor","tugas","harian","pengaturan"].forEach(x=>{$("p-"+x).hidden=x!=p;document.querySelector('nav [data-p="'+x+'"]').classList.toggle("on",x==p)});window.scrollTo(0,0)}
 function adopt(list){list.forEach(t=>{if(t.status&&!S.statuses.some(s=>s.n==t.status))S.statuses.push({n:t.status,d:DRX.test(t.status)?1:0});if(t.jenis&&!S.jenis.includes(t.jenis))S.jenis.push(t.jenis)})}
 function parseCSV(txt){
  var first=txt.split(/\r?\n/)[0]||"",sep=first.split(";").length>first.split(",").length?";":",",rows=[],r=[],c="",q=false;
@@ -253,8 +262,8 @@ function askResched(t,od,nw,ok){pend={t:t,ok:ok,mode:"rs"};var a=$("m-a");
 document.addEventListener("keydown",function(e){if(e.key!="Escape")return;if(!$("mdl").hidden)mClose();else if(!$("pm").hidden)pmClose()});
 function setStatus(id,v){var t=tasks.find(x=>x.id==id);if(!t)return;
  var dn=isDone({status:v}),sel=t.selesai||iso(today);
- if(dn&&needReason(t,sel)){askReason(t,sel,function(){t.status=v;t.selesai=sel;t.upd=iso(today);save();render();offerSteps(t)});return}
- t.status=v;t.upd=iso(today);if(dn){if(!t.selesai)t.selesai=iso(today)}else t.selesai="";save();render();offerSteps(t)}
+ if(dn&&needReason(t,sel)){askReason(t,sel,function(){sh(t,v);t.status=v;t.selesai=sel;t.upd=iso(today);save();render();offerSteps(t)});return}
+ sh(t,v);t.status=v;t.upd=iso(today);if(dn){if(!t.selesai)t.selesai=iso(today)}else t.selesai="";save();render();offerSteps(t)}
 function delT(id){tasks=tasks.filter(x=>x.id!=id);save();render();toast("Tugas dihapus")}
 function ssel(t){var l=S.statuses.map(s=>s.n);if(l.indexOf(t.status)<0)l.push(t.status);return'<select class="ss" aria-label="Ganti status" onchange="setStatus('+t.id+',this.value)">'+l.map(n=>'<option'+(n==t.status?" selected":"")+">"+esc(n)+"</option>").join("")+"</select>"}
 function renderDash(){
@@ -321,7 +330,7 @@ function renderSet(){
  var act=(S.rut||[]).filter(r=>!r.to),arc=(S.rut||[]).filter(r=>r.to),dl=r=>'<button class="x" data-id="'+esc(r.id)+'" onclick="delR(this.dataset.id)">'+(armed==r.id?"Yakin hapus?":"Hapus")+"</button>";
  $("set-rt").innerHTML=act.length?act.map(r=>'<div class="srow"><input data-id="'+esc(r.id)+'" value="'+esc(r.n)+'" aria-label="Nama rutinitas" onchange="renR(this.dataset.id,this.value)" style="flex:1;min-width:0"><button class="sm" data-id="'+esc(r.id)+'" onclick="arcR(this.dataset.id)">Arsipkan</button>'+dl(r)+"</div>").join(""):'<div class="empty">Belum ada rutinitas aktif.</div>';
  $("set-rh").innerHTML=arc.length?arc.map(r=>'<div class="srow"><span class="g">'+esc(r.n)+' <span class="hint" style="margin:0">'+fd(pd(r.from))+" - "+fd(pd(r.to))+" · konsistensi "+pctAll(r)+'</span></span><button class="sm" data-id="'+esc(r.id)+'" onclick="reaR(this.dataset.id)">Aktifkan lagi</button>'+dl(r)+"</div>").join(""):'<div class="empty">Belum ada rutinitas yang diarsipkan.</div>'}
-function render(){renderDash();renderTasks();renderSet();renderRut();renderDC();if(pmId)renderPM()}
+function render(){renderDash();renderTasks();renderSet();renderRut();renderDC();renderHarian();if(pmId)renderPM()}
 function up(){save();render();renderForm()}
 function togF(i){S.fields[i].on=S.fields[i].on?0:1;up()}
 function delF(i){S.fields.splice(i,1);up();toast("Kolom dihapus dari form")}
@@ -340,7 +349,7 @@ $("fm").addEventListener("submit",function(e){e.preventDefault();
  if(!t.ex)t.ex={};S.fields.forEach(f=>{if(!f.on)return;var v=$("f_"+f.k).value;if(f.b)t[f.k]=v;else t.ex[f.k]=v});
  if(isDone(t)){if(!t.selesai)t.selesai=iso(today)}else t.selesai="";
  if(!ed){var ls=($("f_steps").value||"").split("\n").map(x=>x.trim()).filter(Boolean);if(ls.length)t.steps=ls.map((n,i)=>({id:"s"+Date.now()+i,n:n,d:0}))}
- function commit(){if(ed)tasks[tasks.indexOf(ed)]=t;else tasks.push(t);save();render();$("fm").reset();if(ed){cancelEdit();toast("Perubahan disimpan")}if(isDone(t)&&(!ed||!isDone(ed)))offerSteps(t)}
+ function commit(){if(ed&&ed.status!==t.status){(t.sh=t.sh||[]).push({tgl:iso(today),dari:ed.status,ke:t.status});t.upd=iso(today)}if(ed)tasks[tasks.indexOf(ed)]=t;else tasks.push(t);save();render();$("fm").reset();if(ed){cancelEdit();toast("Perubahan disimpan")}if(isDone(t)&&(!ed||!isDone(ed)))offerSteps(t)}
  function fin(){if(isDone(t)&&needReason(t,t.selesai))askReason(t,t.selesai,commit);else commit()}
  var od=ed?nrm(ed.tenggat):"",nw=nrm(t.tenggat);
  if(!t.tawal&&nw&&!od)t.tawal=nw;
@@ -383,8 +392,8 @@ function workday(d){var w=pd(d).getDay();return w>0&&w<6}
 function activeOn(r,d){return r.from<=d&&(!r.to||d<r.to)&&workday(d)&&!isOff(d)}
 function pct(r,n){var a=0,k=0;for(var i=0;i<n;i++){var d=ago(i);if(!activeOn(r,d))continue;var ck=checked(r.id,d);if(i==0&&!ck)continue;a++;if(ck)k++}return a?Math.round(k/a*100)+"%":"-"}
 function pctAll(r){var a=0,k=0,e=r.to||"9999",t=iso(today);for(var d=pd(r.from);iso(d)<e&&iso(d)<=t;d.setDate(d.getDate()+1)){var s=iso(d);if(!activeOn(r,s))continue;var ck=checked(r.id,s);if(s==t&&!ck)continue;a++;if(ck)k++}return a?Math.round(k/a*100)+"%":"-"}
-function toggleR(id){var d=iso(today),x=rget(rm(d));x.c=x.c||{};var c=x.c[d]=x.c[d]||{};if(c[id])delete c[id];else c[id]=1;if(!Object.keys(c).length)delete x.c[d];save();render()}
-function toggleOff(){var d=iso(today),x=rget(rm(d));x.o=x.o||{};if(x.o[d])delete x.o[d];else x.o[d]=1;save();render()}
+function toggleR(id,d){d=d||iso(today);var x=rget(rm(d));x.c=x.c||{};var c=x.c[d]=x.c[d]||{};if(c[id])delete c[id];else c[id]=1;if(!Object.keys(c).length)delete x.c[d];save();render()}
+function toggleOff(d){d=d||iso(today);var x=rget(rm(d));x.o=x.o||{};if(x.o[d])delete x.o[d];else x.o[d]=1;save();render()}
 function renderRut(){
  var d=iso(today),w=workday(d),off=isOff(d),L=(S.rut||[]).filter(r=>r.from<=d&&(!r.to||d<r.to)),n=L.filter(r=>checked(r.id,d)).length,h;
  h='<div class="inl" style="margin:0 0 8px;align-items:center"><h2 style="margin:0;flex:1">Rutinitas hari ini'+(w&&!off&&L.length?' <span class="tag">'+n+"/"+L.length+"</span>":"")+"</h2>"+(w?'<button class="sm" onclick="toggleOff()">'+(off?"Batalkan libur":"Hari ini libur")+"</button>":"")+"</div>";
@@ -468,6 +477,43 @@ function renderPM(){var t=getT(pmId);if(!t){pmClose();return}
  $("pm-st").innerHTML=st.length?'<span class="pb" style="max-width:none"><i style="width:'+Math.round(dn/st.length*100)+'%"></i></span>'+st.map(x=>'<div class="srow"><input type="checkbox" data-s="'+esc(x.id)+'"'+(x.d?" checked":"")+' onchange="stepTog(this.dataset.s)" aria-label="Centang langkah"><span class="g"'+(x.d?' style="text-decoration:line-through;color:var(--mut)"':"")+">"+esc(x.n)+(x.dt?' <span class="hint" style="margin:0">'+fd(pd(x.dt))+"</span>":"")+'</span><button class="x" data-s="'+esc(x.id)+'" onclick="stepDel(this.dataset.s)" aria-label="Hapus langkah">×</button></div>').join(""):'<div class="empty">Belum ada langkah.</div>';
  var lg=(t.log||[]).slice().reverse();
  $("pm-lg").innerHTML=lg.length?lg.map((x,i)=>'<div class="srow"><span class="g"><span class="hint" style="margin:0">'+fd(pd(x.tgl))+"</span> "+esc(x.t)+'</span><button class="x" data-i="'+(lg.length-1-i)+'" onclick="logDel(+this.dataset.i)" aria-label="Hapus update">×</button></div>').join(""):'<div class="empty">Belum ada update.</div>'}
+var hd="";
+function sh(t,v){if(t.status!==v)(t.sh=t.sh||[]).push({tgl:iso(today),dari:t.status,ke:v})}
+function hday(){return hd||iso(today)}
+function setHd(v){if(!v)return;hd=v>iso(today)?iso(today):v;renderHarian()}
+function shiftHd(n){var d=pd(hday());d.setDate(d.getDate()+n);setHd(iso(d))}
+function acts(d){var o={done:[],steps:[],logs:[],rs:[],st:[]};
+ tasks.forEach(t=>{if(isDone(t)&&nrm(t.selesai)==d)o.done.push(t);
+  (t.steps||[]).forEach(s=>{if(s.d&&s.dt==d)o.steps.push({t:t,s:s})});
+  (t.log||[]).forEach(x=>{if(x.tgl==d)o.logs.push({t:t,x:x})});
+  (t.rs||[]).forEach(r=>{if(r.tgl==d)o.rs.push({t:t,r:r})});
+  (t.sh||[]).forEach(h=>{if(h.tgl==d&&!isDone({status:h.ke}))o.st.push({t:t,h:h})})});
+ return o}
+function actN(d){var o=acts(d);return o.done.length+o.steps.length+o.logs.length+o.rs.length+o.st.length}
+function renderHarian(){
+ if(!$("hd-in"))return;
+ var d=hday(),dt=pd(d),o=acts(d),td=iso(today);
+ $("hd-in").value=d;$("hd-in").max=td;
+ $("hd-lb").textContent=dt.toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+ var days=[],i;for(i=13;i>=0;i--)days.push(ago(i));
+ var cn=days.map(actN),mx=Math.max.apply(null,cn.concat([1]));
+ $("hd-st").innerHTML='<div class="dc">'+days.map((x,j)=>{var p=pd(x),n=cn[j];return'<div class="dcol'+(x==d?" on":"")+(x==td?" td":"")+'"><span class="tot">'+(n||"")+'</span><div class="stack"><button class="seg" data-d="'+x+'" onclick="setHd(this.dataset.d)" aria-label="'+fd(p)+": "+n+' aktivitas" style="height:'+(n?Math.max(n/mx*70,10):2)+"px;background:"+(n?"var(--done)":"var(--line)")+'"></button></div><button class="dl" data-d="'+x+'" onclick="setHd(this.dataset.d)">'+p.getDate()+"<br>"+p.toLocaleDateString("id-ID",{month:"short"})+"</button></div>"}).join("")+'</div><p class="hint" style="margin:6px 0 0">Tinggi batang = jumlah aktivitas per hari. Ketuk untuk membuka harinya.</p>';
+ var L=(S.rut||[]).filter(r=>r.from<=d&&(!r.to||d<r.to)),w=workday(d),off=isOff(d),rn=L.filter(r=>checked(r.id,d)).length;
+ $("hd-k").innerHTML=[["Tugas selesai",o.done.length],["Langkah dicentang",o.steps.length],["Update ditulis",o.logs.length],["Rutinitas",w&&!off&&L.length?rn+"/"+L.length:"-"]].map(k=>'<div class="k"><b>'+k[1]+"</b><span>"+k[0]+"</span></div>").join("");
+ var rh="";
+ if(!w)rh='<div class="empty">Akhir pekan: tidak ada rutinitas.</div>';
+ else rh=(off?'<div class="empty" style="padding:4px 0">Hari ini ditandai libur.</div>':L.length?L.map(r=>'<label class="srow" style="flex-direction:row;color:var(--ink);font-size:15px"><input type="checkbox" data-id="'+esc(r.id)+'" data-d="'+d+'"'+(checked(r.id,d)?" checked":"")+' onchange="toggleR(this.dataset.id,this.dataset.d)"><span class="g">'+esc(r.n)+"</span></label>").join(""):'<div class="empty">Tidak ada rutinitas aktif pada hari ini.</div>')+'<button class="sm" data-d="'+d+'" onclick="toggleOff(this.dataset.d)">'+(off?"Batalkan libur":"Tandai libur")+"</button>";
+ $("hd-r").innerHTML=rh;
+ var g={},ord=[];function G(t){if(!g[t.id]){g[t.id]={t:t,done:0,steps:[],logs:[],rs:[],st:[]};ord.push(t.id)}return g[t.id]}
+ o.done.forEach(t=>{G(t).done=1});o.steps.forEach(x=>G(x.t).steps.push(x.s));o.logs.forEach(x=>G(x.t).logs.push(x.x));o.rs.forEach(x=>G(x.t).rs.push(x.r));o.st.forEach(x=>G(x.t).st.push(x.h));
+ ord.sort((a,b)=>g[b].done-g[a].done);
+ var gr='<br><span class="hint" style="margin:0">',ik='<br><span class="hint" style="margin:0;color:var(--ink)">';
+ $("hd-a").innerHTML=ord.length?ord.map(id=>{var x=g[id],t=x.t,h="";
+  x.st.forEach(e=>{h+=gr+"Status: "+esc(e.dari)+" > "+esc(e.ke)+"</span>"});
+  x.steps.forEach(s=>{h+=ik+"✓ "+esc(s.n)+"</span>"});
+  x.logs.forEach(l=>{h+=ik+"Update: "+esc(l.t)+"</span>"});
+  x.rs.forEach(r=>{h+=gr+"Jadwal ulang: "+fd(pd(r.dari))+" > "+fd(pd(r.ke))+" ("+esc(r.alasan)+")</span>"});
+  return'<div class="srow" style="align-items:flex-start"><span class="g"><b>'+esc(t.judul)+"</b> "+(x.done?'<span class="tag" style="color:var(--done);border-color:var(--done)">Selesai</span>':"")+h+'</span><button class="sm" onclick="openPM('+t.id+')">Progres</button></div>'}).join(""):'<div class="empty">Belum ada aktivitas tercatat pada hari ini.</div>'+(d!=td?'<p class="hint">Langkah dan catatan baru tercatat tanggalnya sejak fitur ini aktif.</p>':"")}
 function byId(a,b){return a.id-b.id}
 function onSnap(snap){
  if(snap.metadata.fromCache&&!merged)return;
