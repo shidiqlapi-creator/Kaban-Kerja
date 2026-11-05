@@ -186,7 +186,7 @@ textarea:focus-visible{outline:2px solid var(--prog);outline-offset:2px}
  <div class="inl" style="margin:0 0 8px;align-items:center"><h2 id="pm-t" style="margin:0;flex:1;word-break:break-word"></h2><button class="sm" onclick="pmClose()">Tutup</button></div>
  <div id="pm-h"></div>
  <h2 style="font-size:14px;margin:10px 0 4px">Langkah</h2><div id="pm-st"></div>
- <div class="inl"><input id="ps-n" placeholder="Langkah baru" onkeydown="if(event.key==='Enter')stepAdd()"><button onclick="stepAdd()">Tambah</button></div>
+ <div class="inl"><input id="ps-n" placeholder="Langkah baru" onkeydown="if(event.key==='Enter')stepAdd()"><select id="ps-p" class="ss" aria-label="Posisi langkah baru" style="flex:none"><option value="end">Di akhir</option><option value="next">Jadi berikutnya</option><option value="top">Paling atas</option></select><button onclick="stepAdd()">Tambah</button></div>
  <h2 style="font-size:14px;margin:14px 0 4px">Update progres</h2>
  <div class="inl"><input id="pl-t" placeholder="Catatan singkat, mis. menunggu data produksi" onkeydown="if(event.key==='Enter')logAdd()"><button class="pri" onclick="logAdd()">Simpan</button></div><div id="pm-lg"></div>
 </div></div>
@@ -466,8 +466,11 @@ function openPM(id){pmId=id;$("pm").hidden=false;renderPM()}
 function pmClose(){pmId=null;if($("pm"))$("pm").hidden=true}
 function offerSteps(t){if(isDone(t)&&(t.steps||[]).some(x=>!x.d))openPM(t.id)}
 function touch(t){t.upd=iso(today)}
-function stepAdd(){var t=getT(pmId),v=$("ps-n").value.trim();if(!t||!v)return;(t.steps=t.steps||[]).push({id:"s"+Date.now(),n:v,d:0});touch(t);$("ps-n").value="";save();render()}
+function stepAdd(){var t=getT(pmId),v=$("ps-n").value.trim();if(!t||!v)return;t.steps=t.steps||[];var ns={id:"s"+Date.now(),n:v,d:0},pos=$("ps-p").value;
+ if(pos=="next"){var k=t.steps.findIndex(x=>!x.d);if(k<0)k=t.steps.length;t.steps.splice(k,0,ns)}else if(pos=="top")t.steps.unshift(ns);else t.steps.push(ns);
+ touch(t);$("ps-n").value="";save();render()}
 function stepTog(sid){var t=getT(pmId),x=t&&(t.steps||[]).find(y=>y.id==sid);if(!x)return;x.d=x.d?0:1;x.dt=x.d?iso(today):"";touch(t);save();render()}
+function stepMove(sid,dir){var t=getT(pmId);if(!t||!t.steps)return;var i=t.steps.findIndex(y=>y.id==sid),j=i+dir;if(i<0||j<0||j>=t.steps.length)return;var a=t.steps.splice(i,1)[0];t.steps.splice(j,0,a);save();render()}
 function stepAll(){var t=getT(pmId);if(!t)return;(t.steps||[]).forEach(x=>{if(!x.d){x.d=1;x.dt=iso(today)}});touch(t);save();render()}
 function stepDel(sid){var t=getT(pmId);if(!t)return;t.steps=(t.steps||[]).filter(y=>y.id!=sid);save();render()}
 function logAdd(){var t=getT(pmId),v=$("pl-t").value.trim();if(!t||!v)return;(t.log=t.log||[]).push({tgl:iso(today),t:v});touch(t);$("pl-t").value="";save();render()}
@@ -476,7 +479,7 @@ function renderPM(){var t=getT(pmId);if(!t){pmClose();return}
  $("pm-t").textContent=t.judul;
  var st=t.steps||[],dn=st.filter(x=>x.d).length;
  $("pm-h").innerHTML='<div class="inl" style="margin:0 0 8px;align-items:center;flex-wrap:wrap">'+ssel(t)+'<span class="hint" style="margin:0">Tenggat '+(t.tenggat?fd(pd(t.tenggat)):"-")+" · "+esc(t.prioritas||"Tanpa prioritas")+"</span></div>"+(isDone(t)&&dn<st.length?'<div class="hint" style="color:var(--late);margin:0 0 8px">Tugas sudah selesai, tapi '+(st.length-dn)+' langkah belum dicentang. <button class="sm" onclick="stepAll()">Centang semua</button></div>':"");
- $("pm-st").innerHTML=st.length?'<span class="pb" style="max-width:none"><i style="width:'+Math.round(dn/st.length*100)+'%"></i></span>'+st.map(x=>'<div class="srow"><input type="checkbox" data-s="'+esc(x.id)+'"'+(x.d?" checked":"")+' onchange="stepTog(this.dataset.s)" aria-label="Centang langkah"><span class="g"'+(x.d?' style="text-decoration:line-through;color:var(--mut)"':"")+">"+esc(x.n)+(x.dt?' <span class="hint" style="margin:0">'+fd(pd(x.dt))+"</span>":"")+'</span><button class="x" data-s="'+esc(x.id)+'" onclick="stepDel(this.dataset.s)" aria-label="Hapus langkah">×</button></div>').join(""):'<div class="empty">Belum ada langkah.</div>';
+ $("pm-st").innerHTML=st.length?'<span class="pb" style="max-width:none"><i style="width:'+Math.round(dn/st.length*100)+'%"></i></span>'+st.map((x,i)=>'<div class="srow"><input type="checkbox" data-s="'+esc(x.id)+'"'+(x.d?" checked":"")+' onchange="stepTog(this.dataset.s)" aria-label="Centang langkah"><span class="g"'+(x.d?' style="text-decoration:line-through;color:var(--mut)"':"")+">"+esc(x.n)+(x.dt?' <span class="hint" style="margin:0">'+fd(pd(x.dt))+"</span>":"")+'</span><button class="sm" data-s="'+esc(x.id)+'" onclick="stepMove(this.dataset.s,-1)" aria-label="Naikkan langkah"'+(i==0?" disabled":"")+'>▲</button><button class="sm" data-s="'+esc(x.id)+'" onclick="stepMove(this.dataset.s,1)" aria-label="Turunkan langkah"'+(i==st.length-1?" disabled":"")+'>▼</button><button class="x" data-s="'+esc(x.id)+'" onclick="stepDel(this.dataset.s)" aria-label="Hapus langkah">×</button></div>').join(""):'<div class="empty">Belum ada langkah.</div>';
  var lg=(t.log||[]).slice().reverse();
  $("pm-lg").innerHTML=lg.length?lg.map((x,i)=>'<div class="srow"><span class="g"><span class="hint" style="margin:0">'+fd(pd(x.tgl))+"</span> "+esc(x.t)+'</span><button class="x" data-i="'+(lg.length-1-i)+'" onclick="logDel(+this.dataset.i)" aria-label="Hapus update">×</button></div>').join(""):'<div class="empty">Belum ada update.</div>'}
 var hd="";
