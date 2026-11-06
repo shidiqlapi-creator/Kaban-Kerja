@@ -185,13 +185,14 @@ textarea:focus-visible{outline:2px solid var(--prog);outline-offset:2px}
 <div id="pm" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="pm-t"><div class="mbox" style="max-width:520px;max-height:90vh;overflow:auto">
  <div class="inl" style="margin:0 0 8px;align-items:center"><h2 id="pm-t" style="margin:0;flex:1;word-break:break-word"></h2><button class="sm" onclick="pmClose()">Tutup</button></div>
  <div id="pm-h"></div>
- <h2 style="font-size:14px;margin:10px 0 4px">Langkah</h2><div id="pm-st"></div>
- <div class="inl"><input id="ps-n" placeholder="Langkah baru" onkeydown="if(event.key==='Enter')stepAdd()"><select id="ps-p" class="ss" aria-label="Posisi langkah baru" style="flex:none"><option value="end">Di akhir</option><option value="next">Jadi berikutnya</option><option value="top">Paling atas</option></select><button onclick="stepAdd()">Tambah</button></div>
+ <div class="inl" style="margin:10px 0 4px;align-items:center"><h2 style="font-size:14px;margin:0;flex:1">Langkah</h2><button class="sm" onclick="spreadDue()">Sebar tanggal otomatis</button></div><div id="pm-st"></div>
+ <div class="inl" style="flex-wrap:wrap"><input id="ps-n" placeholder="Langkah baru" onkeydown="if(event.key==='Enter')stepAdd()"><input id="ps-d" type="date" aria-label="Tanggal target langkah (opsional)" style="flex:none;max-width:150px"><select id="ps-p" class="ss" aria-label="Posisi langkah baru" style="flex:none"><option value="end">Di akhir</option><option value="next">Jadi berikutnya</option><option value="top">Paling atas</option></select><button onclick="stepAdd()">Tambah</button></div>
  <h2 style="font-size:14px;margin:14px 0 4px">Update progres</h2>
  <div class="inl"><input id="pl-t" placeholder="Catatan singkat, mis. menunggu data produksi" onkeydown="if(event.key==='Enter')logAdd()"><button class="pri" onclick="logAdd()">Simpan</button></div><div id="pm-lg"></div>
 </div></div>
 <div id="mdl" hidden role="dialog" aria-modal="true" aria-labelledby="m-t"><div class="mbox"><h2 id="m-t">Tugas selesai terlambat</h2><p class="hint" id="m-i" style="margin:0 0 10px"></p>
  <div class="add" style="grid-template-columns:1fr;margin-bottom:12px"><label>Penyebab keterlambatan<select id="m-a"></select></label><label>Catatan<input id="m-c" placeholder="Jelaskan singkat"></label></div>
+ <label id="m-sh" hidden style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:13px;margin-bottom:12px"><input type="checkbox" id="m-shc" checked>Geser tanggal langkah yang belum selesai mengikuti tenggat baru</label>
  <div class="inl" style="justify-content:flex-end"><button onclick="mClose()">Batal</button><button class="pri" onclick="mSave()">Simpan</button></div></div></div>
 <div id="toast" role="status" hidden></div>
 <script>
@@ -240,7 +241,7 @@ var tt;function toast(m){var e=$("toast");e.textContent=m;e.hidden=false;clearTi
 var pend=null;
 function needReason(t,sel){var d=pd(t.tenggat),x=pd(sel);return!!(d&&x&&x>d&&!t.alasan)}
 function lateDone(t){var d=pd(t.tenggat),x=pd(t.selesai);return!!(isDone(t)&&d&&x&&x>d)}
-function askReason(t,sel,ok){pend={t:t,ok:ok};$("m-t").textContent="Tugas selesai terlambat";var n=diff(pd(sel),pd(t.tenggat)),a=$("m-a");
+function askReason(t,sel,ok){pend={t:t,ok:ok};$("m-t").textContent="Tugas selesai terlambat";$("m-sh").hidden=true;var n=diff(pd(sel),pd(t.tenggat)),a=$("m-a");
  $("m-i").textContent="“"+t.judul+"” selesai "+n+" hari setelah tenggat. Apa penyebabnya?";
  a.innerHTML=S.alasan.map(o=>"<option>"+esc(o)+"</option>").join("");a.parentNode.hidden=!S.alasan.length;
  if(t.alasan&&S.alasan.includes(t.alasan))a.value=t.alasan;$("m-c").value=t.catatan||"";
@@ -248,7 +249,7 @@ function askReason(t,sel,ok){pend={t:t,ok:ok};$("m-t").textContent="Tugas selesa
 function mClose(){$("mdl").hidden=true;pend=null;render();unstalled()}
 function mSave(){if(!pend)return;var v=$("m-a").value,c=$("m-c").value.trim();
  if((!v||v=="Lainnya")&&!c){toast("Isi catatan untuk alasan ini.");return $("m-c").focus()}
- var p=pend;$("mdl").hidden=true;pend=null;if(p.mode=="rs"){p.ok(v||"Tanpa kategori",c);return}p.t.alasan=v||"Tanpa kategori";p.t.catatan=c;p.ok()}
+ var p=pend;$("mdl").hidden=true;pend=null;if(p.mode=="rs"){p.ok(v||"Tanpa kategori",c,$("m-shc").checked&&!$("m-sh").hidden);return}p.t.alasan=v||"Tanpa kategori";p.t.catatan=c;p.ok()}
 function editAlasan(id){var t=tasks.find(x=>x.id==id);if(t)askReason(t,t.selesai,function(){save();render()})}
 function nrm(v){var d=pd(v);return d?iso(d):""}
 function orig(t){return t.tawal||t.tenggat}
@@ -257,7 +258,7 @@ function note(t){var h="";
  if(!lateDone(t))return h;var b=' <button class="sm" onclick="editAlasan('+t.id+')">'+(t.alasan?"Ubah":"Isi alasan")+"</button>";
  return h+(t.alasan?'<br><span class="hint" style="margin:0">Terlambat: '+esc(t.alasan)+(t.catatan?" - "+esc(t.catatan):"")+"</span>"+b:'<br><span class="hint" style="margin:0;color:var(--late)">Alasan terlambat belum diisi</span>'+b)}
 function askResched(t,od,nw,ok){pend={t:t,ok:ok,mode:"rs"};var a=$("m-a");
- $("m-t").textContent="Jadwal ulang tugas";
+ $("m-t").textContent="Jadwal ulang tugas";$("m-sh").hidden=!(t.steps||[]).some(x=>!x.d&&x.due);$("m-shc").checked=true;
  $("m-i").textContent="“"+t.judul+"”: tenggat "+fd(pd(od))+" menjadi "+(nw?fd(pd(nw)):"tanpa tenggat")+". Apa alasannya?";
  a.innerHTML=(S.alasanR||[]).concat(["Koreksi salah input (tidak dihitung)"]).map(o=>"<option>"+esc(o)+"</option>").join("");a.parentNode.hidden=false;a.selectedIndex=0;$("m-c").value="";
  $("mdl").hidden=false;a.focus()}
@@ -274,7 +275,7 @@ function renderDash(){
  var late=open.filter(t=>{var d=pd(t.tenggat);return d&&d<today}).map(t=>({t:t,l:diff(today,pd(t.tenggat))})).sort((a,b)=>b.l-a.l);
  var meas=done.filter(t=>pd(orig(t))&&pd(t.selesai)),ont=meas.filter(t=>pd(t.selesai)<=pd(orig(t))).length;
  var cyc=done.filter(t=>pd(t.mulai)&&pd(t.selesai)).map(t=>diff(pd(t.selesai),pd(t.mulai)));
- var K=[["","Total kartu",tasks.length],["","Selesai",done.length],["","Sedang berjalan",open.length-late.length],["late","Tunggakan",late.length],["","Dijadwal ulang",tasks.filter(t=>t.rs&&t.rs.length).length],["","Belum ada update",tasks.filter(t=>stalled(t)!=null).length],["","Selesai tepat waktu (tenggat awal)",meas.length?Math.round(ont/meas.length*100)+"%":"-"],["","Rata-rata waktu pengerjaan",cyc.length?(cyc.reduce((a,b)=>a+b,0)/cyc.length).toFixed(1)+" hari":"-"]];
+ var K=[["","Total kartu",tasks.length],["","Selesai",done.length],["","Sedang berjalan",open.length-late.length],["late","Tunggakan",late.length],["","Dijadwal ulang",tasks.filter(t=>t.rs&&t.rs.length).length],["","Belum ada update",tasks.filter(t=>stalled(t)!=null).length],["","Tertinggal dari jadwal",tasks.filter(t=>{var j=jalur(t);return j&&j.k=="late"}).length],["","Selesai tepat waktu (tenggat awal)",meas.length?Math.round(ont/meas.length*100)+"%":"-"],["","Rata-rata waktu pengerjaan",cyc.length?(cyc.reduce((a,b)=>a+b,0)/cyc.length).toFixed(1)+" hari":"-"]];
  $("kpis").innerHTML=K.map(k=>'<div class="k '+k[0]+'"><b>'+k[2]+"</b><span>"+k[1]+"</span></div>").join("");
  var ot=open.map(t=>{var d=pd(t.tenggat);return{t:t,l:d?diff(today,d):null}}).sort((a,b)=>(b.l==null?-1e9:b.l)-(a.l==null?-1e9:a.l));
  $("late").innerHTML=ot.length?'<table class="stk"><tr><th>Tugas</th><th>Jenis</th><th>Status</th><th>Prioritas</th><th>Tenggat</th><th>Sisa waktu</th></tr>'+ot.map(x=>'<tr'+(x.l>0?' class="lr"':'')+'><td class="tt">'+esc(x.t.judul)+prog(x.t)+'</td><td data-l="Jenis">'+esc(x.t.jenis||"-")+'</td><td data-l="Status">'+ssel(x.t)+'</td><td data-l="Prioritas"><span class="tag '+esc(x.t.prioritas)+'">'+esc(x.t.prioritas||"-")+'</span></td><td data-l="Tenggat">'+(x.l==null?"-":fd(pd(x.t.tenggat)))+'</td><td data-l="Sisa waktu"'+(x.l>0?' class="late-d"':'')+'>'+(x.l==null?"-":x.l>0?x.l+" hari telat":x.l==0?"Hari ini":(-x.l)+" hari lagi")+'</td></tr>').join("")+'</table>':'<div class="empty">'+(tasks.length?"Tidak ada pekerjaan terbuka. Semua tugas sudah selesai.":"Belum ada tugas. Buka Daftar tugas untuk menambah atau impor CSV.")+'</div>';
@@ -355,7 +356,7 @@ $("fm").addEventListener("submit",function(e){e.preventDefault();
  function fin(){if(isDone(t)&&needReason(t,t.selesai))askReason(t,t.selesai,commit);else commit()}
  var od=ed?nrm(ed.tenggat):"",nw=nrm(t.tenggat);
  if(!t.tawal&&nw&&!od)t.tawal=nw;
- if(od&&od!==nw){askResched(t,od,nw,function(a,c){
+ if(od&&od!==nw){askResched(t,od,nw,function(a,c,sh){if(sh&&nw)shiftDue(t,diff(pd(nw),pd(od)));
   if(a.indexOf("Koreksi")==0){if(!t.tawal||t.tawal==od)t.tawal=nw}
   else{if(!t.tawal)t.tawal=od;(t.rs=t.rs||[]).push({dari:od,ke:nw,tgl:iso(today),alasan:a,catatan:c})}
   fin()})}
@@ -457,7 +458,7 @@ function mdk(){return S&&S.mandek!=null?S.mandek:3}
 function lastAct(t){if(t.upd)return t.upd;if(t.id>1e12)return iso(new Date(t.id));return nrm(t.mulai)||""}
 function stalled(t){var m=mdk();if(!m||isDone(t))return null;var started=(t.steps||[]).length||(t.log||[]).length;if(!started&&t.status==S.statuses[0].n)return null;var b=lastAct(t);if(!b)return null;var n=diff(today,pd(b));return n>=m?n:null}
 function prog(t){var h="",st=t.steps||[];
- if(st.length){var dn=st.filter(x=>x.d).length,nx=st.find(x=>!x.d);h+='<span class="pb"><i style="width:'+Math.round(dn/st.length*100)+'%"></i></span><span class="hint" style="margin:0">'+dn+"/"+st.length+" langkah"+(nx?" · berikutnya: "+esc(nx.n):" · semua langkah selesai")+"</span>"}
+ if(st.length){var dn=st.filter(x=>x.d).length,nx=st.find(x=>!x.d);h+='<span class="pb"><i style="width:'+Math.round(dn/st.length*100)+'%"></i></span><span class="hint" style="margin:0">'+dn+"/"+st.length+" langkah"+(nx?" · berikutnya: "+esc(nx.n)+(nx.due?" ("+fd(pd(nx.due))+")":""):" · semua langkah selesai")+"</span>"+jalurTag(t)}
  var lg=(t.log||[]).slice(-1)[0];if(lg)h+='<br><span class="hint" style="margin:0">Update '+fd(pd(lg.tgl))+": "+esc(lg.t)+"</span>";
  var m=stalled(t);if(m!=null)h+='<br><span class="tag" style="color:var(--late);border-color:var(--late)">Belum ada update '+m+" hari</span>";
  return(h?"<br>"+h:"")+'<br><button class="sm" onclick="openPM('+t.id+')">Progres</button>'}
@@ -466,20 +467,20 @@ function openPM(id){pmId=id;$("pm").hidden=false;renderPM()}
 function pmClose(){pmId=null;if($("pm"))$("pm").hidden=true}
 function offerSteps(t){if(isDone(t)&&(t.steps||[]).some(x=>!x.d))openPM(t.id)}
 function touch(t){t.upd=iso(today)}
-function stepAdd(){var t=getT(pmId),v=$("ps-n").value.trim();if(!t||!v)return;t.steps=t.steps||[];var ns={id:"s"+Date.now(),n:v,d:0},pos=$("ps-p").value;
+function stepAdd(){var t=getT(pmId),v=$("ps-n").value.trim();if(!t||!v)return;t.steps=t.steps||[];var ns={id:"s"+Date.now(),n:v,d:0,due:$("ps-d").value||""},pos=$("ps-p").value;
  if(pos=="next"){var k=t.steps.findIndex(x=>!x.d);if(k<0)k=t.steps.length;t.steps.splice(k,0,ns)}else if(pos=="top")t.steps.unshift(ns);else t.steps.push(ns);
- touch(t);$("ps-n").value="";save();render()}
-function stepTog(sid){var t=getT(pmId),x=t&&(t.steps||[]).find(y=>y.id==sid);if(!x)return;x.d=x.d?0:1;x.dt=x.d?iso(today):"";touch(t);save();render()}
+ touch(t);$("ps-n").value="";$("ps-d").value="";save();render()}
+function stepTog(sid){var t=getT(pmId),x=t&&(t.steps||[]).find(y=>y.id==sid);if(!x)return;x.d=x.d?0:1;x.dt=x.d?iso(today):"";delete x.au;touch(t);save();render()}
 function stepMove(sid,dir){var t=getT(pmId);if(!t||!t.steps)return;var i=t.steps.findIndex(y=>y.id==sid),j=i+dir;if(i<0||j<0||j>=t.steps.length)return;var a=t.steps.splice(i,1)[0];t.steps.splice(j,0,a);save();render()}
-function stepAll(){var t=getT(pmId);if(!t)return;(t.steps||[]).forEach(x=>{if(!x.d){x.d=1;x.dt=iso(today)}});touch(t);save();render()}
+function stepAll(){var t=getT(pmId);if(!t)return;(t.steps||[]).forEach(x=>{if(!x.d){x.d=1;x.dt=iso(today);x.au=1}});touch(t);save();render()}
 function stepDel(sid){var t=getT(pmId);if(!t)return;t.steps=(t.steps||[]).filter(y=>y.id!=sid);save();render()}
 function logAdd(){var t=getT(pmId),v=$("pl-t").value.trim();if(!t||!v)return;(t.log=t.log||[]).push({tgl:iso(today),t:v});touch(t);$("pl-t").value="";save();render()}
 function logDel(i){var t=getT(pmId);if(!t||!t.log)return;t.log.splice(i,1);save();render()}
 function renderPM(){var t=getT(pmId);if(!t){pmClose();return}
  $("pm-t").textContent=t.judul;
  var st=t.steps||[],dn=st.filter(x=>x.d).length;
- $("pm-h").innerHTML='<div class="inl" style="margin:0 0 8px;align-items:center;flex-wrap:wrap">'+ssel(t)+'<span class="hint" style="margin:0">Tenggat '+(t.tenggat?fd(pd(t.tenggat)):"-")+" · "+esc(t.prioritas||"Tanpa prioritas")+"</span></div>"+(isDone(t)&&dn<st.length?'<div class="hint" style="color:var(--late);margin:0 0 8px">Tugas sudah selesai, tapi '+(st.length-dn)+' langkah belum dicentang. <button class="sm" onclick="stepAll()">Centang semua</button></div>':"");
- $("pm-st").innerHTML=st.length?'<span class="pb" style="max-width:none"><i style="width:'+Math.round(dn/st.length*100)+'%"></i></span>'+st.map((x,i)=>'<div class="srow"><input type="checkbox" data-s="'+esc(x.id)+'"'+(x.d?" checked":"")+' onchange="stepTog(this.dataset.s)" aria-label="Centang langkah"><span class="g"'+(x.d?' style="text-decoration:line-through;color:var(--mut)"':"")+">"+esc(x.n)+(x.dt?' <span class="hint" style="margin:0">'+fd(pd(x.dt))+"</span>":"")+'</span><button class="sm" data-s="'+esc(x.id)+'" onclick="stepMove(this.dataset.s,-1)" aria-label="Naikkan langkah"'+(i==0?" disabled":"")+'>▲</button><button class="sm" data-s="'+esc(x.id)+'" onclick="stepMove(this.dataset.s,1)" aria-label="Turunkan langkah"'+(i==st.length-1?" disabled":"")+'>▼</button><button class="x" data-s="'+esc(x.id)+'" onclick="stepDel(this.dataset.s)" aria-label="Hapus langkah">×</button></div>').join(""):'<div class="empty">Belum ada langkah.</div>';
+ $("pm-h").innerHTML='<div class="inl" style="margin:0 0 8px;align-items:center;flex-wrap:wrap">'+ssel(t)+'<span class="hint" style="margin:0">Tenggat '+(t.tenggat?fd(pd(t.tenggat))+" ("+cd(t.tenggat)+")":"-")+" · "+esc(t.prioritas||"Tanpa prioritas")+"</span>"+jalurTag(t)+"</div>"+(isDone(t)&&dn<st.length?'<div class="hint" style="color:var(--late);margin:0 0 8px">Tugas sudah selesai, tapi '+(st.length-dn)+' langkah belum dicentang. <button class="sm" onclick="stepAll()">Centang semua</button></div>':"");
+ $("pm-st").innerHTML=st.length?'<span class="pb" style="max-width:none"><i style="width:'+Math.round(dn/st.length*100)+'%"></i></span>'+st.map((x,i)=>'<div class="srow"><input type="checkbox" data-s="'+esc(x.id)+'"'+(x.d?" checked":"")+' onchange="stepTog(this.dataset.s)" aria-label="Centang langkah"><span class="g"'+(x.d?' style="text-decoration:line-through;color:var(--mut)"':"")+">"+esc(x.n)+(x.dt?' <span class="hint" style="margin:0">'+fd(pd(x.dt))+"</span>":"")+'<br><input type="date" data-s="'+esc(x.id)+'" value="'+esc(x.due||"")+'" onchange="stepDue(this.dataset.s,this.value)" aria-label="Tanggal target langkah" style="padding:4px 6px;font-size:13px;max-width:150px">'+stepTag(x)+'</span><button class="sm" data-s="'+esc(x.id)+'" onclick="stepMove(this.dataset.s,-1)" aria-label="Naikkan langkah"'+(i==0?" disabled":"")+'>▲</button><button class="sm" data-s="'+esc(x.id)+'" onclick="stepMove(this.dataset.s,1)" aria-label="Turunkan langkah"'+(i==st.length-1?" disabled":"")+'>▼</button><button class="x" data-s="'+esc(x.id)+'" onclick="stepDel(this.dataset.s)" aria-label="Hapus langkah">×</button></div>').join(""):'<div class="empty">Belum ada langkah.</div>';
  var lg=(t.log||[]).slice().reverse();
  $("pm-lg").innerHTML=lg.length?lg.map((x,i)=>'<div class="srow"><span class="g"><span class="hint" style="margin:0">'+fd(pd(x.tgl))+"</span> "+esc(x.t)+'</span><button class="x" data-i="'+(lg.length-1-i)+'" onclick="logDel(+this.dataset.i)" aria-label="Hapus update">×</button></div>').join(""):'<div class="empty">Belum ada update.</div>'}
 var hd="";
@@ -523,19 +524,41 @@ var tdAll=false,tdOpen=false,tdHide=false;
 function toggleHide(){tdHide=!tdHide;try{localStorage.setItem("dk_h_"+KEY,tdHide?"1":"0")}catch(e){}renderToday()}
 function todayStats(){var td=iso(today),dn=tasks.filter(t=>isDone(t)&&nrm(t.selesai)==td);
  var rest=tasks.filter(t=>{if(isDone(t))return false;var d=pd(t.tenggat);return d&&d<=today}).map(t=>({t:t,l:diff(today,pd(t.tenggat))})).sort((a,b)=>b.l-a.l);
- var tot=dn.length+rest.length;return{dn:dn,rest:rest,tot:tot,pct:tot?Math.round(dn.length/tot*100):null}}
+ var sd=[],sr=[];
+ tasks.forEach(t=>{(t.steps||[]).forEach(x=>{if(x.d){if(x.dt==td&&!x.au)sd.push({t:t,x:x})}else if(x.due&&x.due<=td&&!isDone(t))sr.push({t:t,x:x,l:diff(today,pd(x.due))})})});
+ sr.sort((a,b)=>b.l-a.l);
+ var dd=dn.length+sd.length,nr=rest.length+sr.length,tot=dd+nr;
+ return{dn:dn,rest:rest,sd:sd,sr:sr,nrest:nr,ndone:dd,tot:tot,pct:tot?Math.round(dd/tot*100):null}}
 function todayHTML(){var s=todayStats(),td=iso(today),L=(S.rut||[]).filter(r=>r.from<=td&&(!r.to||td<r.to)),w=workday(td),off=isOff(td),rn=L.filter(r=>checked(r.id,td)).length;
  var h='<div class="inl" style="margin:0 0 8px;align-items:center;flex-wrap:wrap"><h2 style="margin:0;flex:1">Hari ini</h2><span class="hint" style="margin:0">'+today.toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})+"</span></div>";
- if(!s.tot)h+='<div class="empty" style="padding:4px 0">Tidak ada tugas yang jatuh tempo hari ini dan tidak ada tunggakan.</div>';
- else h+='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><b style="font-size:38px;line-height:1;color:'+(s.pct==100?"var(--done)":"var(--ink)")+'">'+s.pct+'%</b><div style="flex:1;min-width:160px"><span class="pb" style="max-width:none;height:10px"><i style="width:'+s.pct+'%"></i></span><span class="hint" style="margin:0">'+s.dn.length+" selesai · "+s.rest.length+" tersisa</span></div></div>";
+ if(!s.tot)h+='<div class="empty" style="padding:4px 0">Tidak ada tugas atau langkah yang jatuh tempo hari ini dan tidak ada tunggakan.</div>';
+ else h+='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><b style="font-size:38px;line-height:1;color:'+(s.pct==100?"var(--done)":"var(--ink)")+'">'+s.pct+'%</b><div style="flex:1;min-width:160px"><span class="pb" style="max-width:none;height:10px"><i style="width:'+s.pct+'%"></i></span><span class="hint" style="margin:0">'+s.ndone+" selesai · "+s.nrest+" tersisa</span></div></div>";
  if(w&&!off&&L.length)h+='<p class="hint" style="margin:8px 0 0">Rutinitas: '+rn+"/"+L.length+"</p>";
- if(s.rest.length){var R2=tdAll?s.rest:s.rest.slice(0,8);
-  h+='<div class="inl" style="margin:12px 0 4px;align-items:center"><h2 style="font-size:14px;margin:0;flex:1">Tersisa hari ini ('+s.rest.length+')</h2><button class="sm" onclick="toggleHide()">'+(tdHide?"Tampilkan":"Sembunyikan")+"</button></div>";
+ if(s.nrest){var R2=tdAll?s.rest:s.rest.slice(0,8),S2=tdAll?s.sr:s.sr.slice(0,8);
+  h+='<div class="inl" style="margin:12px 0 4px;align-items:center"><h2 style="font-size:14px;margin:0;flex:1">Tersisa hari ini ('+s.nrest+')</h2><button class="sm" onclick="toggleHide()">'+(tdHide?"Tampilkan":"Sembunyikan")+"</button></div>";
   if(!tdHide){h+=R2.map(x=>{var t=x.t;return'<div class="srow" style="flex-wrap:wrap;align-items:flex-start"><span class="g" style="min-width:150px"><b>'+esc(t.judul)+"</b> "+(x.l>0?'<span class="tag" style="color:var(--late);border-color:var(--late)">Telat '+x.l+" hari</span>":'<span class="tag">Jatuh tempo hari ini</span>')+' <span class="tag '+esc(t.prioritas)+'">'+esc(t.prioritas||"Tanpa prioritas")+"</span>"+prog(t)+"</span>"+ssel(t)+"</div>"}).join("");
-  if(s.rest.length>8)h+='<button class="sm" style="margin-top:8px" onclick="tdAll=!tdAll;renderToday()">'+(tdAll?"Ringkas":"Tampilkan semua ("+s.rest.length+")")+"</button>"}}
- if(s.dn.length)h+='<details'+(tdOpen?" open":"")+' ontoggle="tdOpen=this.open" style="margin-top:10px"><summary class="hint" style="margin:0;cursor:pointer">Sudah selesai hari ini ('+s.dn.length+")</summary>"+s.dn.map(t=>'<div class="srow"><span class="g">'+esc(t.judul)+'</span><span class="tag" style="color:var(--done);border-color:var(--done)">'+esc(t.prioritas||"Tanpa prioritas")+"</span></div>").join("")+"</details>";
+   if(S2.length)h+='<div class="hint" style="margin:10px 0 2px">Langkah jatuh tempo</div>'+S2.map(x=>'<div class="srow" style="flex-wrap:wrap;align-items:flex-start"><input type="checkbox" data-t="'+x.t.id+'" data-s="'+esc(x.x.id)+'" onchange="stepTogG(this.dataset.t,this.dataset.s)" aria-label="Centang langkah"><span class="g" style="min-width:150px"><b>'+esc(x.x.n)+"</b> "+(x.l>0?'<span class="tag" style="color:var(--late);border-color:var(--late)">Telat '+x.l+" hari</span>":'<span class="tag">Hari ini</span>')+'<br><span class="hint" style="margin:0">'+esc(x.t.judul)+'</span></span><button class="sm" onclick="openPM('+x.t.id+')">Progres</button></div>').join("");
+   if(s.rest.length>8||s.sr.length>8)h+='<button class="sm" style="margin-top:8px" onclick="tdAll=!tdAll;renderToday()">'+(tdAll?"Ringkas":"Tampilkan semua")+"</button>"}}
+ var nd=s.dn.length+s.sd.length;
+ if(nd)h+='<details'+(tdOpen?" open":"")+' ontoggle="tdOpen=this.open" style="margin-top:10px"><summary class="hint" style="margin:0;cursor:pointer">Sudah selesai hari ini ('+nd+")</summary>"+s.dn.map(t=>'<div class="srow"><span class="g">'+esc(t.judul)+'</span><span class="tag" style="color:var(--done);border-color:var(--done)">'+esc(t.prioritas||"Tanpa prioritas")+"</span></div>").join("")+s.sd.map(x=>'<div class="srow"><span class="g">✓ '+esc(x.x.n)+'<br><span class="hint" style="margin:0">'+esc(x.t.judul)+"</span></span></div>").join("")+"</details>";
  return h}
 function renderToday(){var h=todayHTML(),a=$("td-c"),b=$("hd-t");if(a)a.innerHTML=h;if(b){b.hidden=hday()!=iso(today);if(!b.hidden)b.innerHTML=h}}
+function cd(v){var l=diff(pd(v),today);return l>0?l+" hari lagi":l==0?"hari ini":"telat "+(-l)+" hari"}
+function jalur(t){var st=(t.steps||[]).filter(x=>x.due);if(!st.length||isDone(t))return null;
+ var td=iso(today),beh=st.filter(x=>!x.d&&x.due<td).length,ahead=st.filter(x=>x.d&&x.due>td).length;
+ return beh?{k:"late",txt:"Tertinggal "+beh+" langkah"}:ahead?{k:"ok",txt:"Di depan jadwal"}:{k:"ok",txt:"Sesuai jalur"}}
+function jalurTag(t){var j=jalur(t);if(!j)return"";var c=j.k=="late"?"var(--late)":"var(--done)";return' <span class="tag" style="color:'+c+";border-color:"+c+'">'+j.txt+"</span>"}
+function stepTag(x){if(x.d||!x.due)return"";var l=diff(today,pd(x.due));return l>0?' <span class="tag" style="color:var(--late);border-color:var(--late)">Telat '+l+" hari</span>":l==0?' <span class="tag">Hari ini</span>':""}
+function stepDue(sid,v){var t=getT(pmId),x=t&&(t.steps||[]).find(y=>y.id==sid);if(!x)return;x.due=v||"";save();render()}
+function stepTogG(tid,sid){var t=getT(tid),x=t&&(t.steps||[]).find(y=>y.id==sid);if(!x)return;x.d=x.d?0:1;x.dt=x.d?iso(today):"";delete x.au;touch(t);save();render()}
+function shiftDue(t,delta){(t.steps||[]).forEach(x=>{if(!x.d&&x.due){var d=pd(x.due);d.setDate(d.getDate()+delta);x.due=iso(d)}})}
+function workdaysBetween(a,b){var r=[],d=new Date(a);while(d<=b){var s=iso(d);if(workday(s))r.push(s);d.setDate(d.getDate()+1)}return r}
+function spreadDue(){var t=getT(pmId);if(!t)return;var un=(t.steps||[]).filter(x=>!x.d);if(!un.length)return toast("Tidak ada langkah yang belum selesai.");
+ var e=pd(t.tenggat);if(!e)return toast("Isi tenggat tugas dulu (tombol Ubah).");
+ if(e<today)return toast("Tenggat sudah lewat. Ubah tenggat dulu.");
+ var W=workdaysBetween(today,e);if(!W.length)W=[iso(e)];
+ var n=un.length,m=W.length;un.forEach((x,k)=>{x.due=W[Math.min(m-1,Math.ceil((k+1)*m/n)-1)]});
+ save();render();toast("Tanggal "+n+" langkah disebar sampai "+fd(e))}
 function byId(a,b){return a.id-b.id}
 function onSnap(snap){
  if(snap.metadata.fromCache&&!merged)return;
